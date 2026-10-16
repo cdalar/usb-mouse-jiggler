@@ -1,0 +1,73 @@
+# Installs the pinned toolchain from build.env, compiles the sketch and writes
+# the flash-at-0x0 image. Shared by ci.yml and release.yml so a release is built
+# exactly the way CI validated it.
+
+name: Build firmware
+description: Compile the sketch and write the trimmed full image.
+
+inputs:
+  image-name:
+    description: File name for the full image, written under dist/.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Load build.env
+      shell: bash
+      run: cat build.env >> "$GITHUB_ENV"
+
+    - name: Install arduino-cli
+      shell: bash
+      run: |
+        set -euo pipefail
+        tarball="arduino-cli_${ARDUINO_CLI_VERSION}_Linux_64bit.tar.gz"
+        base="https://github.com/arduino/arduino-cli/releases/download/v${ARDUINO_CLI_VERSION}"
+        dir="$RUNNER_TEMP/arduino-cli"
+        mkdir -p "$dir"
+        cd "$dir"
+        curl -fsSLO "$base/$tarball"
+        curl -fsSL "$base/${ARDUINO_CLI_VERSION}-checksums.txt" | grep " ${tarball}\$" | sha256sum -c -
+        tar -xzf "$tarball" arduino-cli
+        echo "$dir" >> "$GITHUB_PATH"
+
+    - name: Restore Arduino cache
+      uses: actions/cache@v6
+      with:
+        path: ~/.arduino15
+        key: arduino-${{ runner.os }}-core${{ env.CORE_VERSION }}
+
+    - name: Install ESP32 core
+      shell: bash
+      run: |
+        arduino-cli config init --overwrite
+        arduino-cli config add board_manager.additional_urls \
+          https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+        arduino-cli core update-index
+        arduino-cli core install "esp32:esp32@${CORE_VERSION}"
+
+    - name: Compile
+      shell: bash
+      run: |
+        set -o pipefail
+        arduino-cli compile \
+          --fqbn "$FQBN" \
+          --warnings default \
+          --output-dir build-out \
+          "$SKETCH" 2>&1 | tee compile.log
+
+    - name: Build flashable full image
+      shell: bash
+      env:
+        IMAGE_NAME: ${{ inputs.image-name }}
+      run: |
+        set -euo pipefail
+        bash scripts/make-full-image.sh build-out "dist/${IMAGE_NAME}"
+        cp "build-out/${SKETCH}.ino.bin" "dist/${IMAGE_NAME%-full.bin}-app.bin"
+        {
+          echo "### Size"
+          echo '```'
+          grep -E "of (program storage space|dynamic memory)" compile.log || echo "no size data"
+          echo '```'
+          echo "Flashable image: \`${IMAGE_NAME}\` — write at \`0x0\`."
+        } >> "$GITHUB_STEP_SUMMARY"
