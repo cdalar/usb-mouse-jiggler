@@ -15,7 +15,7 @@ runs:
   steps:
     - name: Load build.env
       shell: bash
-      run: cat build.env >> "$GITHUB_ENV"
+      run: grep -E "^[A-Z_]+=" build.env >> "$GITHUB_ENV"
 
     - name: Install arduino-cli
       shell: bash
