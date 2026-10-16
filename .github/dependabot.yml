@@ -1,0 +1,11 @@
+# Keeps the GitHub Actions we depend on current. The core and arduino-cli
+# versions live in build.env, which Dependabot cannot see.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "ci"

@@ -1,0 +1,47 @@
+# Compiles the sketch on every PR and push to main, and uploads the flashable
+# image as an artifact so a PR can be tested on a board before merge.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Seeed XIAO ESP32-S3
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build
+        uses: ./.github/actions/build
+        with:
+          image-name: usb-mouse-xiao-esp32s3-${{ github.sha }}-full.bin
+
+      - name: Upload flashable image
+        uses: actions/upload-artifact@v7
+        with:
+          name: usb-mouse-xiao-esp32s3-${{ github.sha }}
+          path: dist/*.bin
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload compile log on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compile-log
+          path: compile.log
+          retention-days: 7

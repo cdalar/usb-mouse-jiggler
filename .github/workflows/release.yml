@@ -1,0 +1,68 @@
+# Publishes a GitHub Release when a v* tag is pushed:
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# Assets: the full image (flash at 0x0), the app-only image, and SHA256SUMS.
+# A tag with a suffix (v1.0.0-rc.1) is published as a prerelease.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]] \
+            || { echo "::error::tag '$TAG' is not v<x>.<y>.<z>[-suffix]"; exit 1; }
+
+      - name: Build
+        uses: ./.github/actions/build
+        with:
+          image-name: usb-mouse-xiao-esp32s3-${{ github.ref_name }}-full.bin
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum *.bin > SHA256SUMS
+          cd ..
+          FULL="usb-mouse-xiao-esp32s3-${TAG}-full.bin"
+          cat > notes.md <<NOTES
+          USB mouse jiggler for the Seeed XIAO ESP32-S3.
+
+          **Flash** \`${FULL}\` at \`0x0\`:
+
+          \`\`\`
+          esptool --chip esp32s3 --port /dev/ttyACM0 write-flash 0x0 ${FULL}
+          \`\`\`
+
+          Or use [ESP Launchpad](https://espressif.github.io/esp-launchpad/) (Chrome/Edge): DIY tab, address \`0x0\`.
+          Hold BOOT while plugging in the USB cable to enter download mode.
+
+          \`-app.bin\` is the application partition alone (offset \`0x10000\`), for esptool only.
+          NOTES
+          FLAGS=(--title "$TAG" --notes-file notes.md --generate-notes)
+          [[ "$TAG" == *-* ]] && FLAGS+=(--prerelease)
+          gh release create "$TAG" "${FLAGS[@]}" dist/*.bin dist/SHA256SUMS
