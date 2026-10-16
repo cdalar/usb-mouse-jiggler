@@ -21,7 +21,13 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        tarball="arduino-cli_${ARDUINO_CLI_VERSION}_Linux_64bit.tar.gz"
+        case "$(uname -m)" in
+          x86_64)        arch=64bit ;;
+          aarch64|arm64) arch=ARM64 ;;
+          armv7l)        arch=ARMv7 ;;
+          *) echo "::error::unsupported runner architecture $(uname -m)"; exit 1 ;;
+        esac
+        tarball="arduino-cli_${ARDUINO_CLI_VERSION}_Linux_${arch}.tar.gz"
         base="https://github.com/arduino/arduino-cli/releases/download/v${ARDUINO_CLI_VERSION}"
         dir="$RUNNER_TEMP/arduino-cli"
         mkdir -p "$dir"
