@@ -4,3 +4,4 @@
 # arduino-cli also writes a build tree next to the sketch
 /usb_mouse_jiggler/build/
 compile.log
+__pycache__/
