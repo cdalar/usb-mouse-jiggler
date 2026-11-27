@@ -6,6 +6,9 @@ name: Build firmware
 description: Compile the sketch and write the trimmed full image.
 
 inputs:
+  device:
+    description: Which firmware to build, mouse or keyboard.
+    required: true
   image-name:
     description: File name for the full image, written under dist/.
     required: true
@@ -15,7 +18,16 @@ runs:
   steps:
     - name: Load build.env
       shell: bash
-      run: grep -E "^[A-Z_]+=" build.env >> "$GITHUB_ENV"
+      env:
+        DEVICE: ${{ inputs.device }}
+      run: |
+        set -euo pipefail
+        case "$DEVICE" in
+          mouse|keyboard) ;;
+          *) echo "::error::device must be mouse or keyboard, not '$DEVICE'"; exit 1 ;;
+        esac
+        grep -E "^[A-Z_]+=" build.env >> "$GITHUB_ENV"
+        echo "SKETCH=usb_${DEVICE}_jiggler" >> "$GITHUB_ENV"
 
     - name: Install arduino-cli
       shell: bash
@@ -59,8 +71,8 @@ runs:
         arduino-cli compile \
           --fqbn "$FQBN" \
           --warnings default \
-          --output-dir build-out \
-          "$SKETCH" 2>&1 | tee compile.log
+          --output-dir "build-out/$SKETCH" \
+          "$SKETCH" 2>&1 | tee -a compile.log
 
     - name: Build flashable full image
       shell: bash
@@ -68,10 +80,10 @@ runs:
         IMAGE_NAME: ${{ inputs.image-name }}
       run: |
         set -euo pipefail
-        bash scripts/make-full-image.sh build-out "dist/${IMAGE_NAME}"
-        cp "build-out/${SKETCH}.ino.bin" "dist/${IMAGE_NAME%-full.bin}-app.bin"
+        bash scripts/make-full-image.sh "build-out/$SKETCH" "dist/${IMAGE_NAME}"
+        cp "build-out/${SKETCH}/${SKETCH}.ino.bin" "dist/${IMAGE_NAME%-full.bin}-app.bin"
         {
-          echo "### Size"
+          echo "### Size: ${SKETCH}"
           echo '```'
           grep -E "of (program storage space|dynamic memory)" compile.log || echo "no size data"
           echo '```'

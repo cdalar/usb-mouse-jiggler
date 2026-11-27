@@ -5,6 +5,19 @@ Tiny firmware that turns a **Seeed XIAO ESP32-S3** into a plain USB mouse named
 so the computer never goes idle (screen lock, "away" status, sleep timers).
 Plug it in and it works: no pairing, no driver, no serial port.
 
+A second firmware for the same board, the **keyboard jiggler**, enumerates as a
+plain USB keyboard named "USB Keyboard" and taps **Left Shift** every 30-40
+seconds instead. A lone Shift tap types nothing and triggers no shortcut. Use it
+where the pointer must not move, or where mouse activity alone doesn't count
+(some remote-desktop and presence tools only watch the keyboard).
+
+| Firmware | Sketch | Image |
+|---|---|---|
+| Mouse | `usb_mouse_jiggler/` | `usb-mouse-xiao-esp32s3-<version>-full.bin` |
+| Keyboard | `usb_keyboard_jiggler/` | `usb-keyboard-xiao-esp32s3-<version>-full.bin` |
+
+Both are flashed, built and cased the same way; only the image name differs.
+
 ## Hardware
 
 Any board with native USB-OTG works, so ESP32-S2 and ESP32-S3. The ESP32-C3 and
@@ -14,12 +27,13 @@ cannot enumerate as a HID device. The build targets the
 other S3 boards need a different `FQBN` in `build.env` (and a matching flash
 size in the image header).
 
-Neither the flash size nor PSRAM matters here. The firmware is ~330 KB and uses
-about 54 KB of RAM.
+Neither the flash size nor PSRAM matters here. Either firmware is ~330 KB and
+uses about 54 KB of RAM.
 
 ## Get the firmware
 
-Download `usb-mouse-xiao-esp32s3-<version>-full.bin` from the
+Download `usb-mouse-xiao-esp32s3-<version>-full.bin` or
+`usb-keyboard-xiao-esp32s3-<version>-full.bin` from the
 [latest release](../../releases/latest), or build it yourself (below).
 
 ## Flash
@@ -50,6 +64,9 @@ Needs [arduino-cli](https://arduino.github.io/arduino-cli/) (and `make`).
 make setup      # installs the pinned ESP32 core
 make            # compiles, writes dist/usb-mouse-xiao-esp32s3-<version>-full.bin
 make flash PORT=/dev/ttyACM0
+
+make DEVICE=keyboard                         # dist/usb-keyboard-xiao-esp32s3-<version>-full.bin
+make flash DEVICE=keyboard PORT=/dev/ttyACM0
 ```
 
 The toolchain and board settings live in one file, `build.env`, which the
@@ -59,13 +76,13 @@ Makefile and CI both read. Two settings are load-bearing:
 - `CDCOnBoot=cdc` means **Disabled** (the labels are swapped in the XIAO board
   definition). It keeps the board a mouse only, with no serial interface.
 
-Never flash `build-out/*.merged.bin` directly. The core pads it to the whole
+Never flash `build-out/*/*.merged.bin` directly. The core pads it to the whole
 flash chip; `scripts/make-full-image.sh` cuts it right after the app and
 refuses if anything non-empty would be lost.
 
 ## Tuning
 
-Constants at the top of `usb_mouse_jiggler/usb_mouse_jiggler.ino`:
+Mouse, constants at the top of `usb_mouse_jiggler/usb_mouse_jiggler.ino`:
 
 | Constant | Default | Meaning |
 |---|---|---|
@@ -73,6 +90,18 @@ Constants at the top of `usb_mouse_jiggler/usb_mouse_jiggler.ino`:
 | `JIGGLE_RANDOM_MS` | 10000 | extra random 0..N ms, so it isn't metronomic |
 | `JIGGLE_PIXELS` | 2 | size of the nudge (it moves back afterwards) |
 | `SETTLE_MS` | 40 | pause between the out and back moves |
+
+Keyboard, constants at the top of `usb_keyboard_jiggler/usb_keyboard_jiggler.ino`:
+
+| Constant | Default | Meaning |
+|---|---|---|
+| `TAP_EVERY_MS` | 30000 | base gap between taps |
+| `TAP_RANDOM_MS` | 10000 | extra random 0..N ms |
+| `TAP_KEY` | `KEY_LEFT_SHIFT` | key to tap; any `KEY_*` from the core's `USBHIDKeyboard.h` |
+| `HOLD_MS` | 40 | how long the key is held down |
+
+`KEY_F13`..`KEY_F24` also work on Windows and Linux, but macOS maps F14/F15 to
+screen brightness, which is why Shift is the default.
 
 ## Enclosure
 
@@ -86,13 +115,14 @@ top of the script, then rebuild it with `uv run hardware/enclosure.py`.
 
 ## CI and releases
 
-- `ci.yml` compiles on every PR and push to `main` and uploads the flashable
-  image as an artifact (14 days), so a PR can be tested on a board.
+- `ci.yml` compiles both firmwares on every PR and push to `main` and uploads
+  each flashable image as an artifact (14 days), so a PR can be tested on a board.
 - `release.yml` runs when a `v*` tag is pushed:
   ```sh
   git tag v1.0.0 && git push origin v1.0.0
   ```
-  It publishes the full image, the app-only image and `SHA256SUMS`. A tag with a
+  It publishes the full and app-only images of both firmwares and one
+  `SHA256SUMS`. A tag with a
   suffix (`v1.0.0-rc.1`) becomes a prerelease.
 - Dependabot keeps the GitHub Actions current. The core and arduino-cli pins in
   `build.env` are bumped by hand.

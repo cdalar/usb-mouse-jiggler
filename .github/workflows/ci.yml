@@ -1,4 +1,4 @@
-# Compiles the sketch on every PR and push to main, and uploads the flashable
+# Compiles both sketches on every PR and push to main, and uploads the flashable
 # image as an artifact so a PR can be tested on a board before merge.
 
 name: CI
@@ -18,8 +18,12 @@ permissions:
 
 jobs:
   build:
-    name: Seeed XIAO ESP32-S3
+    name: XIAO ESP32-S3 ${{ matrix.device }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [mouse, keyboard]
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -28,12 +32,13 @@ jobs:
       - name: Build
         uses: ./.github/actions/build
         with:
-          image-name: usb-mouse-xiao-esp32s3-${{ github.sha }}-full.bin
+          device: ${{ matrix.device }}
+          image-name: usb-${{ matrix.device }}-xiao-esp32s3-${{ github.sha }}-full.bin
 
       - name: Upload flashable image
         uses: actions/upload-artifact@v7
         with:
-          name: usb-mouse-xiao-esp32s3-${{ github.sha }}
+          name: usb-${{ matrix.device }}-xiao-esp32s3-${{ github.sha }}
           path: dist/*.bin
           retention-days: 14
           if-no-files-found: error
@@ -42,6 +47,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: compile-log
+          name: compile-log-${{ matrix.device }}
           path: compile.log
           retention-days: 7

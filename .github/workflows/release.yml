@@ -2,7 +2,8 @@
 #
 #   git tag v1.0.0 && git push origin v1.0.0
 #
-# Assets: the full image (flash at 0x0), the app-only image, and SHA256SUMS.
+# Assets, for both the mouse and the keyboard jiggler: the full image (flash
+# at 0x0) and the app-only image, plus one SHA256SUMS.
 # A tag with a suffix (v1.0.0-rc.1) is published as a prerelease.
 
 name: Release
@@ -34,10 +35,17 @@ jobs:
           [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]] \
             || { echo "::error::tag '$TAG' is not v<x>.<y>.<z>[-suffix]"; exit 1; }
 
-      - name: Build
+      - name: Build mouse
         uses: ./.github/actions/build
         with:
+          device: mouse
           image-name: usb-mouse-xiao-esp32s3-${{ github.ref_name }}-full.bin
+
+      - name: Build keyboard
+        uses: ./.github/actions/build
+        with:
+          device: keyboard
+          image-name: usb-keyboard-xiao-esp32s3-${{ github.ref_name }}-full.bin
 
       - name: Publish release
         env:
@@ -48,9 +56,12 @@ jobs:
           cd dist
           sha256sum *.bin > SHA256SUMS
           cd ..
-          FULL="usb-mouse-xiao-esp32s3-${TAG}-full.bin"
+          FULL="usb-<mouse|keyboard>-xiao-esp32s3-${TAG}-full.bin"
           cat > notes.md <<NOTES
-          USB mouse jiggler for the Seeed XIAO ESP32-S3.
+          USB jigglers for the Seeed XIAO ESP32-S3. Pick one:
+
+          - \`usb-mouse-…\`: a USB mouse that nudges the pointer 2 px and back every 30-40 s.
+          - \`usb-keyboard-…\`: a USB keyboard that taps Left Shift every 30-40 s.
 
           **Flash** \`${FULL}\` at \`0x0\`:
 
