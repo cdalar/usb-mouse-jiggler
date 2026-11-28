@@ -65,8 +65,21 @@ machines, login screens, BIOS/UEFI setup and a fresh OS install.
 | USB-C to HDMI adapter, e.g. Anker 310 | target, only if it has no HDMI | $15–20 | target's port must support DisplayPort Alt Mode |
 | HDMI splitter (optional) | before the capture card | $10–20 | only to keep a local monitor on the target |
 
-An alternative to the Waveshare card plus adapter is the ATEN UC3020
-(CAMLIVE+). It has a native USB-C plug and does 1080p60 UVC, but costs more.
+Alternatives to the Waveshare card. Any HDMI capture card that macOS sees as a
+webcam (UVC) works, because the MCP server only needs still frames.
+
+- **UGREEN HDMI to USB capture card**
+  ([Amazon.nl B0CFQ2BMPZ](https://www.amazon.nl/-/en/dp/B0CFQ2BMPZ)).
+  Listings give 1080p60 capture from up to 4K30 input, and Mac support with
+  QuickTime and OBS, so it shows up as a camera with no driver. Before buying,
+  check on the listing:
+  1. whether it includes a USB-C plug, cable or adapter (if not, use the
+     USB 3 C-to-A adapter above);
+  2. that it is the USB 3.0 / 1080p60 version and not the similar USB 2.0 /
+     1080p30 model 40189. Either works for screenshots; 60 fps gives sharper
+     text and less lag.
+- **ATEN UC3020 (CAMLIVE+):** a native USB-C plug and 1080p60 UVC, but it
+  costs more.
 
 ### Target display settings
 
